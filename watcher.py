@@ -91,11 +91,29 @@ def transcribe_audio(audio_file: Path) -> str:
     """
     logger.info("Transcribing audio file: %s", audio_file)
 
+    # Determine content type based on file extension
+    content_type_map = {
+        ".m4a": "audio/m4a",
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".flac": "audio/flac",
+        ".aac": "audio/aac",
+        ".wma": "audio/x-ms-wma",
+    }
+    content_type = content_type_map.get(audio_file.suffix.lower(), "audio/*")
+
     with audio_file.open("rb") as f:
-        files = {"file": (audio_file.name, f, "audio/*")}
+        files = {"audio": (audio_file.name, f, content_type)}
 
         with httpx.Client(timeout=300.0) as client:
             response = client.post(TRANSCRIBE_URL, files=files)
+
+            # Log response details for debugging
+            logger.info("Transcription response status: %d", response.status_code)
+            if response.status_code != 200:
+                logger.error("Transcription failed. Response: %s", response.text)
+
             response.raise_for_status()
 
             result = response.json()
