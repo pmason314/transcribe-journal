@@ -235,12 +235,45 @@ def cleanup_old_audio_files() -> None:
         logger.info("Cleaned up %d old audio files", deleted_count)
 
 
+def process_existing_files(handler: AudioFileHandler) -> None:
+    """Process any audio files that already exist in the watch folder.
+
+    Args:
+        handler: The AudioFileHandler instance with the processing set.
+    """
+    if not WATCH_FOLDER.exists():
+        logger.warning("Watch folder does not exist: %s", WATCH_FOLDER)
+        return
+
+    audio_files = list(WATCH_FOLDER.glob("*"))
+    logger.info("Scanning for existing audio files in %s", WATCH_FOLDER)
+    logger.info("Found %d files total", len(audio_files))
+
+    found_audio = False
+    for file_path in audio_files:
+        if file_path.is_file() and file_path.suffix.lower() in AUDIO_EXTENSIONS:
+            found_audio = True
+            logger.info("Found existing audio file: %s", file_path)
+            if str(file_path) not in handler.processing:
+                handler.processing.add(str(file_path))
+                try:
+                    process_audio_file(file_path)
+                except Exception:
+                    logger.exception("Error processing existing file: %s", file_path)
+                finally:
+                    handler.processing.discard(str(file_path))
+
+    if not found_audio:
+        logger.info("No audio files found in watch folder")
+
+
 def main() -> None:
     """Run the audio file watcher service."""
     logger.info("Starting audio file watcher service")
     logger.info("Watching folder: %s", WATCH_FOLDER)
     logger.info("Journal folder: %s", JOURNAL_FOLDER)
     logger.info("Max audio file age: %d days", AUDIO_FILE_MAX_AGE_DAYS)
+    logger.info("Supported audio extensions: %s", ", ".join(sorted(AUDIO_EXTENSIONS)))
 
     # Ensure watch folder exists
     WATCH_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -258,6 +291,9 @@ def main() -> None:
     # Start watching
     observer.start()
     logger.info("Watcher started successfully")
+
+    # Process any existing files
+    process_existing_files(event_handler)
 
     try:
         while True:
