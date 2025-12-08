@@ -6,22 +6,30 @@ cleans up the text with Ollama, and saves the result.
 """
 
 import logging
+import os
+import threading
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-# Configuration
-WATCH_FOLDER = Path("/mnt/syncthing/voice")
-TRANSCRIBE_URL = "http://192.168.0.165:8000/transcribe"
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OUTPUT_FOLDER = Path.home() / "transcribed_journals"
+# Configuration from environment variables
+WATCH_FOLDER = Path(os.getenv("WATCH_FOLDER", "/mnt/syncthing/Voice Recordings")).expanduser()
+TRANSCRIBE_URL = os.getenv("TRANSCRIBE_URL", "http://192.168.0.165:8000/transcribe")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+JOURNAL_FOLDER = Path(os.getenv("JOURNAL_FOLDER", "/mnt/syncthing/Obsidian/Archive/Journal")).expanduser()
 PROCESSED_FOLDER = WATCH_FOLDER / ".processed"
 
+# Cleanup settings
+AUDIO_FILE_MAX_AGE_DAYS = int(os.getenv("AUDIO_FILE_MAX_AGE_DAYS", "7"))
+
 # Audio file extensions to watch for
-AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".wma"}
+AUDIO_EXTENSIONS_STR = os.getenv("AUDIO_EXTENSIONS", ".mp3,.wav,.m4a,.ogg,.flac,.aac,.wma")
+AUDIO_EXTENSIONS = {ext.strip() for ext in AUDIO_EXTENSIONS_STR.split(",")}
 
 # Setup logging
 logging.basicConfig(
@@ -120,7 +128,7 @@ Text to clean:
 {text}"""
 
     payload = {
-        "model": "llama3.2",  # Adjust model name as needed
+        "model": OLLAMA_MODEL,
         "prompt": prompt,
         "stream": False,
     }
@@ -157,12 +165,24 @@ def process_audio_file(audio_file: Path) -> None:
     # Clean up the text with Ollama
     cleaned_text = clean_text_with_ollama(transcription)
 
-    # Save the cleaned text
-    OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
-    output_file = OUTPUT_FOLDER / f"{audio_file.stem}.txt"
+    # Save to journal file for today
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    journal_file = JOURNAL_FOLDER / f"{today}.md"
 
-    output_file.write_text(cleaned_text, encoding="utf-8")
-    logger.info("Saved cleaned transcription to: %s", output_file)
+    JOURNAL_FOLDER.mkdir(parents=True, exist_ok=True)
+
+    # Append to existing file or create new one
+    if journal_file.exists():
+        logger.info("Appending to existing journal file: %s", journal_file)
+        with journal_file.open("a", encoding="utf-8") as f:
+            f.write("\n\n---\n\n")
+            f.write(cleaned_text)
+            f.write("\n")
+    else:
+        logger.info("Creating new journal file: %s", journal_file)
+        journal_file.write_text(cleaned_text, encoding="utf-8")
+
+    logger.info("Saved cleaned transcription to: %s", journal_file)
 
     # Move the original audio file to processed folder
     PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -178,16 +198,59 @@ def process_audio_file(audio_file: Path) -> None:
     logger.info("Moved processed file to: %s", processed_file)
 
 
+def cleanup_loop() -> None:
+    """Run cleanup once daily on a background thread."""
+    while True:
+        try:
+            cleanup_old_audio_files()
+        except Exception:
+            logger.exception("Error during cleanup")
+        # Sleep for 24 hours before running cleanup again
+        time.sleep(86400)  # 86400 seconds = 24 hours
+
+
+def cleanup_old_audio_files() -> None:
+    """Delete audio files older than AUDIO_FILE_MAX_AGE_DAYS."""
+    cutoff_time = time.time() - (AUDIO_FILE_MAX_AGE_DAYS * 86400)  # 86400 seconds per day
+    deleted_count = 0
+
+    if not WATCH_FOLDER.exists():
+        return
+
+    for audio_file in WATCH_FOLDER.glob("*"):
+        file_age_check = (
+            audio_file.is_file()
+            and audio_file.suffix.lower() in AUDIO_EXTENSIONS
+            and audio_file.stat().st_mtime < cutoff_time
+        )
+        if file_age_check:
+            try:
+                audio_file.unlink()
+                logger.info("Deleted old audio file: %s", audio_file)
+                deleted_count += 1
+            except OSError:
+                logger.exception("Failed to delete file: %s", audio_file)
+
+    if deleted_count > 0:
+        logger.info("Cleaned up %d old audio files", deleted_count)
+
+
 def main() -> None:
     """Run the audio file watcher service."""
     logger.info("Starting audio file watcher service")
     logger.info("Watching folder: %s", WATCH_FOLDER)
-    logger.info("Output folder: %s", OUTPUT_FOLDER)
+    logger.info("Journal folder: %s", JOURNAL_FOLDER)
+    logger.info("Max audio file age: %d days", AUDIO_FILE_MAX_AGE_DAYS)
 
     # Ensure watch folder exists
     WATCH_FOLDER.mkdir(parents=True, exist_ok=True)
 
-    # Create observer and event handler
+    # Start cleanup thread (runs once daily in background)
+    cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
+    cleanup_thread.start()
+    logger.info("Cleanup thread started (runs daily)")
+
+    # Create observer and event handler for file watching
     event_handler = AudioFileHandler()
     observer = Observer()
     observer.schedule(event_handler, str(WATCH_FOLDER), recursive=False)
