@@ -1,0 +1,37 @@
+minimum_pre_commit_version: 2.15.0
+exclude: ^LICENSES/|\.(html|csv|svg)$
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+        name: Ensure files end in newlines
+      - id: trailing-whitespace
+        name: Remove trailing whitespace
+      - id: debug-statements
+        name: Check for debug statements
+      - id: check-merge-conflict
+        name: Check for remaining merge conflict markers
+      - id: check-toml
+        name: Ensure TOML files are valid
+      - id: check-yaml
+        name: Ensure YAML files are valid
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        name: Check for common misspellings in text files
+        types_or: [python, rst, markdown]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.7
+    hooks:
+      - id: ruff
+        name: Lint Python code with Ruff
+        types_or: [ python, jupyter]
+        args:
+          - --fix
+          - --exit-non-zero-on-fix
+          - --extend-select=F401
+      - id: ruff-format
+        name: Format Python code with Ruff
+        types_or: [python, jupyter]

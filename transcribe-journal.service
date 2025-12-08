@@ -1,0 +1,19 @@
+[Unit]
+Description=Audio Transcription Journal Service
+After=network.target
+
+[Service]
+Type=simple
+User=peter
+WorkingDirectory=/home/peter/coding/transcribe-journal
+ExecStart=/home/peter/coding/transcribe-journal/.venv/bin/python /home/peter/coding/transcribe-journal/watcher.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=transcribe-journal
+
+[Install]
+WantedBy=multi-user.target
