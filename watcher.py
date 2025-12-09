@@ -203,7 +203,7 @@ def save_to_journal_file(text: str, date_str: str) -> None:
     if journal_file.exists():
         logger.info("Appending to existing journal file: %s", journal_file)
         with journal_file.open("a", encoding="utf-8") as f:
-            f.write("\n\n---\n\n")
+            f.write("\n\n")
             f.write(text)
     else:
         logger.info("Creating new journal file: %s", journal_file)
