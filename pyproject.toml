@@ -44,6 +44,8 @@ ignore = [
     "S607",    # Avoid starting a process with a partial executable path
     "TD002",   # Missing author in TODO comment
     "TRY003",  # Avoid long exception messages outside the exception class
+
+    "S501",
 ]
 unfixable = []
 
