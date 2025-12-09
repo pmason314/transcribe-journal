@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=peter
 WorkingDirectory=/home/peter/coding/transcribe-journal
-ExecStart=/home/peter/coding/transcribe-journal/.venv/bin/python /home/peter/coding/transcribe-journal/watcher.py
+ExecStart=/usr/bin/uv run --env-file .env watcher.py
 Restart=always
 RestartSec=10
 

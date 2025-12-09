@@ -19,18 +19,27 @@ uv sync
 
 ### 2. Configure the service
 
-Edit `watcher.py` if you need to change any of these settings:
-- `WATCH_FOLDER`: Directory to watch for audio files (default: `/mnt/syncthing/voice`)
+Create a `.env` file in the project directory (use `.env.example` as a template):
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` to configure these settings:
+- `WATCH_FOLDER`: Directory to watch for audio files (default: `"/mnt/syncthing/Voice Recordings"`)
 - `TRANSCRIBE_URL`: URL of your transcription endpoint (default: `http://192.168.0.165:8000/transcribe`)
-- `OLLAMA_URL`: URL of your Ollama instance (default: `http://localhost:11434/api/generate`)
-- `OUTPUT_FOLDER`: Where to save transcribed text (default: `~/transcribed_journals`)
+- `OLLAMA_URL`: URL of your Ollama instance (default: `http://192.168.0.165:11434/api/generate`)
+- `OLLAMA_MODEL`: Ollama model to use for text cleanup (default: `llama3.2:latest`)
+- `JOURNAL_FOLDER`: Where to save journal entries (default: `"/mnt/syncthing/Obsidian/Archive/Journal"`)
+- `AUDIO_FILE_MAX_AGE_DAYS`: Days to keep audio files before cleanup (default: `7`)
+- `NOTE_TIMEZONE`: Timezone for daily notes (default: `America/Los_Angeles`)
 
 ### 3. Test the service
 
 Run the watcher manually to ensure everything works:
 
 ```bash
-uv run watcher.py
+uv run --env-file .env watcher.py
 ```
 
 ### 4. Install as a systemd service (runs in background)
@@ -54,13 +63,16 @@ sudo systemctl status transcribe-journal
 
 ## Usage
 
-Once the service is running, simply drop audio files (mp3, wav, m4a, ogg, flac, aac, wma) into `/mnt/syncthing/voice`. The service will:
+Once the service is running, simply drop audio files (mp3, wav, m4a, ogg, flac, aac, wma) into your configured watch folder. The service will:
 
 1. Detect the new file
 2. Transcribe it using your local endpoint
 3. Clean up the text with Ollama
-4. Save the result to `~/transcribed_journals/[filename].txt`
-5. Move the original audio to `/mnt/syncthing/voice/.processed/`
+4. Append the cleaned text to today's journal file (`YYYY-MM-DD.md`) in your Obsidian journal folder
+5. Move the original audio to the `.processed/` subfolder in your watch folder
+6. Automatically clean up audio files older than 7 days (configurable)
+
+The journal entries are saved as Markdown files with frontmatter, making them compatible with Obsidian and other Markdown editors.
 
 ## Monitoring
 
