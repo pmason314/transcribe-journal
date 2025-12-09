@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Audio file watcher and transcription service.
+"""Audio file watcher and transcription service with reliable polling.
 
 Watches a directory for new audio files, transcribes them using a local endpoint,
 cleans up the text with Ollama, and saves the result.
+
+Uses a polling mechanism instead of filesystem events for reliability on network mounts.
 """
 
 import logging
@@ -15,8 +17,6 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
-from watchdog.events import FileSystemEvent, FileSystemEventHandler
-from watchdog.observers import Observer
 
 # Configuration from environment variables
 WATCH_FOLDER = Path(os.getenv("WATCH_FOLDER", "/mnt/syncthing/Voice Recordings")).expanduser()
@@ -32,6 +32,9 @@ NOTE_TIMEZONE = ZoneInfo(os.getenv("NOTE_TIMEZONE", "America/Los_Angeles"))
 # Cleanup settings
 AUDIO_FILE_MAX_AGE_DAYS = int(os.getenv("AUDIO_FILE_MAX_AGE_DAYS", "7"))
 
+# Polling interval in seconds
+POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "5"))
+
 # Audio file extensions to watch for
 AUDIO_EXTENSIONS_STR = os.getenv("AUDIO_EXTENSIONS", ".mp3,.wav,.m4a,.ogg,.flac,.aac,.wma")
 AUDIO_EXTENSIONS = {ext.strip() for ext in AUDIO_EXTENSIONS_STR.split(",")}
@@ -44,42 +47,62 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class AudioFileHandler(FileSystemEventHandler):
-    """Handle new audio file events."""
+class FileWatcher:
+    """Watch for new audio files using polling."""
 
     def __init__(self) -> None:
-        """Initialize the handler."""
-        super().__init__()
+        """Initialize the file watcher."""
         self.processing: set[str] = set()
+        self.processed: set[str] = set()
+        self.stop_event = threading.Event()
 
-    def on_created(self, event: FileSystemEvent) -> None:
-        """Handle file creation events.
-
-        Args:
-            event: The file system event containing the file path.
-        """
-        if event.is_directory:
+    def scan_for_files(self) -> None:
+        """Scan the watch folder for new audio files."""
+        if not WATCH_FOLDER.exists():
             return
-
-        file_path = Path(event.src_path)
-
-        # Check if it's an audio file
-        if file_path.suffix.lower() not in AUDIO_EXTENSIONS:
-            return
-
-        # Avoid processing the same file multiple times
-        if str(file_path) in self.processing:
-            return
-
-        logger.info("New audio file detected: %s", file_path)
-        self.processing.add(str(file_path))
 
         try:
-            process_audio_file(file_path)
+            for file_path in WATCH_FOLDER.glob("*"):
+                if not file_path.is_file():
+                    continue
+
+                if file_path.suffix.lower() not in AUDIO_EXTENSIONS:
+                    continue
+
+                file_str = str(file_path)
+
+                # Skip if already processed or currently processing
+                if file_str in self.processed or file_str in self.processing:
+                    continue
+
+                # New file found
+                logger.info("Detected new audio file: %s", file_path)
+                self.processing.add(file_str)
+
+                try:
+                    process_audio_file(file_path)
+                    self.processed.add(file_str)
+                except Exception:
+                    logger.exception("Error processing file: %s", file_path)
+                finally:
+                    self.processing.discard(file_str)
+
         except Exception:
-            logger.exception("Error processing file: %s", file_path)
-        finally:
-            self.processing.discard(str(file_path))
+            logger.exception("Error scanning for files")
+
+    def watch_loop(self) -> None:
+        """Main polling loop."""
+        logger.info("Starting file watcher (polling every %d seconds)", POLL_INTERVAL)
+
+        while not self.stop_event.is_set():
+            self.scan_for_files()
+            time.sleep(POLL_INTERVAL)
+
+        logger.info("File watcher stopped")
+
+    def stop(self) -> None:
+        """Stop the watcher."""
+        self.stop_event.set()
 
 
 def transcribe_audio(audio_file: Path) -> str:
@@ -180,6 +203,7 @@ def save_to_journal_file(text: str, date_str: str) -> None:
     if journal_file.exists():
         logger.info("Appending to existing journal file: %s", journal_file)
         with journal_file.open("a", encoding="utf-8") as f:
+            f.write("\n\n---\n\n")
             f.write(text)
     else:
         logger.info("Creating new journal file: %s", journal_file)
@@ -188,8 +212,11 @@ def save_to_journal_file(text: str, date_str: str) -> None:
 title: {date_str} Journal Entry
 tags: 'journal'
 ---
+
 """
-        journal_file.write_text(frontmatter + text, encoding="utf-8")
+        with journal_file.open("w", encoding="utf-8") as f:
+            f.write(frontmatter)
+            f.write(text)
 
     logger.info("Saved cleaned transcription to: %s", journal_file)
 
@@ -270,85 +297,43 @@ def cleanup_old_audio_files() -> None:
         logger.info("Cleaned up %d old audio files", deleted_count)
 
 
-def process_existing_files(handler: AudioFileHandler) -> None:
-    """Process any audio files that already exist in the watch folder.
-
-    Args:
-        handler: The AudioFileHandler instance with the processing set.
-    """
-    if not WATCH_FOLDER.exists():
-        logger.warning("Watch folder does not exist: %s", WATCH_FOLDER)
-        return
-
-    audio_files = list(WATCH_FOLDER.glob("*"))
-    logger.info("Scanning for existing audio files in %s", WATCH_FOLDER)
-    logger.info("Found %d files total", len(audio_files))
-
-    found_audio = False
-    for file_path in audio_files:
-        if file_path.is_file() and file_path.suffix.lower() in AUDIO_EXTENSIONS:
-            found_audio = True
-            logger.info("Found existing audio file: %s", file_path)
-            if str(file_path) not in handler.processing:
-                handler.processing.add(str(file_path))
-                try:
-                    process_audio_file(file_path)
-                except Exception:
-                    logger.exception("Error processing existing file: %s", file_path)
-                finally:
-                    handler.processing.discard(str(file_path))
-
-    if not found_audio:
-        logger.info("No audio files found in watch folder")
-
-
 def main() -> None:
     """Run the audio file watcher service."""
-    logger.info("Starting audio file watcher service")
+    logger.info("Starting audio file watcher service (polling mode)")
     logger.info("Watching folder: %s", WATCH_FOLDER)
     logger.info("Journal folder: %s", JOURNAL_FOLDER)
     logger.info("Max audio file age: %d days", AUDIO_FILE_MAX_AGE_DAYS)
+    logger.info("Poll interval: %d seconds", POLL_INTERVAL)
     logger.info("Supported audio extensions: %s", ", ".join(sorted(AUDIO_EXTENSIONS)))
 
     # Ensure watch folder exists
     WATCH_FOLDER.mkdir(parents=True, exist_ok=True)
+
+    # Create file watcher
+    watcher = FileWatcher()
+
+    # Set up signal handlers for graceful shutdown
+    def signal_handler(signum: int, _frame: object | None = None) -> None:
+        """Handle termination signals gracefully."""
+        logger.info("Received signal %d, stopping watcher...", signum)
+        watcher.stop()
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
     # Start cleanup thread (runs once daily in background)
     cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
     cleanup_thread.start()
     logger.info("Cleanup thread started (runs daily)")
 
-    # Create observer and event handler for file watching
-    event_handler = AudioFileHandler()
-    observer = Observer()
-    observer.schedule(event_handler, str(WATCH_FOLDER), recursive=False)
+    # Process any existing files on startup
+    logger.info("Scanning for existing audio files...")
+    watcher.scan_for_files()
 
-    # Start watching
-    observer.start()
-    logger.info("Watcher started successfully")
+    # Start the watch loop (this blocks until stopped)
+    watcher.watch_loop()
 
-    # Process any existing files
-    process_existing_files(event_handler)
-
-    # Set up signal handlers for graceful shutdown
-    stop_event = threading.Event()
-
-    def signal_handler(signum: int, _frame: object | None = None) -> None:
-        """Handle termination signals gracefully."""
-        logger.info("Received signal %d, stopping watcher...", signum)
-        stop_event.set()
-
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
-
-    try:
-        while not stop_event.is_set():
-            time.sleep(1)
-    finally:
-        logger.info("Stopping watcher...")
-        observer.stop()
-        observer.join()
-        logger.info("Watcher stopped")
+    logger.info("Service stopped")
 
 
 if __name__ == "__main__":
