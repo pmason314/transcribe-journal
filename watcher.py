@@ -9,8 +9,9 @@ import logging
 import os
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
@@ -27,6 +28,9 @@ PROCESSED_FOLDER = WATCH_FOLDER / ".processed"
 # Obsidian API settings (always use, with fallback to file writes)
 OBSIDIAN_API_URL = "https://127.0.0.1:27124"
 OBSIDIAN_API_KEY = os.getenv("OBSIDIAN_API_KEY", "")
+
+# Timezone for daily note dates (default: Pacific Time)
+NOTE_TIMEZONE = ZoneInfo(os.getenv("NOTE_TIMEZONE", "America/Los_Angeles"))
 
 # Cleanup settings
 AUDIO_FILE_MAX_AGE_DAYS = int(os.getenv("AUDIO_FILE_MAX_AGE_DAYS", "7"))
@@ -283,7 +287,7 @@ def process_audio_file(audio_file: Path) -> None:
     cleaned_text = clean_text_with_ollama(transcription)
 
     # Save to journal - try Obsidian API first if key is configured, otherwise write directly
-    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    today = datetime.now(NOTE_TIMEZONE).strftime("%Y-%m-%d")
 
     if OBSIDIAN_API_KEY:
         logger.info("Using Obsidian API to save daily note")
