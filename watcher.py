@@ -7,6 +7,7 @@ cleans up the text with Ollama, and saves the result.
 
 import logging
 import os
+import signal
 import threading
 import time
 from datetime import datetime
@@ -329,15 +330,25 @@ def main() -> None:
     # Process any existing files
     process_existing_files(event_handler)
 
+    # Set up signal handlers for graceful shutdown
+    stop_event = threading.Event()
+
+    def signal_handler(signum: int, _frame: object | None = None) -> None:
+        """Handle termination signals gracefully."""
+        logger.info("Received signal %d, stopping watcher...", signum)
+        stop_event.set()
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
     try:
-        while True:
+        while not stop_event.is_set():
             time.sleep(1)
-    except KeyboardInterrupt:
+    finally:
         logger.info("Stopping watcher...")
         observer.stop()
-
-    observer.join()
-    logger.info("Watcher stopped")
+        observer.join()
+        logger.info("Watcher stopped")
 
 
 if __name__ == "__main__":
