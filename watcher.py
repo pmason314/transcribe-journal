@@ -24,6 +24,11 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 JOURNAL_FOLDER = Path(os.getenv("JOURNAL_FOLDER", "/mnt/syncthing/Obsidian/Archive/Journal")).expanduser()
 PROCESSED_FOLDER = WATCH_FOLDER / ".processed"
 
+# Obsidian API settings
+OBSIDIAN_API_URL = os.getenv("OBSIDIAN_API_URL", "http://localhost:27124")
+OBSIDIAN_API_KEY = os.getenv("OBSIDIAN_API_KEY", "")
+USE_OBSIDIAN_API = os.getenv("USE_OBSIDIAN_API", "false").lower() == "true"
+
 # Cleanup settings
 AUDIO_FILE_MAX_AGE_DAYS = int(os.getenv("AUDIO_FILE_MAX_AGE_DAYS", "7"))
 
@@ -162,6 +167,84 @@ Text to clean:
         return cleaned_text
 
 
+def append_to_obsidian_daily_note(text: str, date_str: str) -> bool:
+    """Append text to Obsidian daily note using the Local REST API.
+
+    Args:
+        text: The text to append to the daily note.
+        date_str: The date string in YYYY-MM-DD format.
+
+    Returns:
+        True if successful, False otherwise.
+    """
+    if not USE_OBSIDIAN_API or not OBSIDIAN_API_KEY:
+        return False
+
+    # Try to get existing daily note
+    headers = {"Authorization": f"Bearer {OBSIDIAN_API_KEY}"}
+    daily_note_path = f"Archive/Journal/{date_str}.md"
+
+    try:
+        # Get current content
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(
+                f"{OBSIDIAN_API_URL}/vault/{daily_note_path}",
+                headers=headers,
+            )
+
+            if response.status_code == 200:
+                # File exists, append to it
+                current_content = response.text
+                new_content = f"{current_content}\n\n---\n\n{text}\n"
+            elif response.status_code == 404:
+                # File doesn't exist, create with content
+                new_content = text
+            else:
+                logger.error("Failed to get daily note: %s", response.text)
+                return False
+
+            # Update or create the file
+            put_response = client.put(
+                f"{OBSIDIAN_API_URL}/vault/{daily_note_path}",
+                headers=headers,
+                content=new_content.encode("utf-8"),
+            )
+
+            if put_response.status_code in (200, 204):
+                logger.info("Successfully updated Obsidian daily note via API")
+                return True
+
+            logger.error("Failed to update daily note: %s", put_response.text)
+            return False
+
+    except Exception:
+        logger.exception("Error using Obsidian API")
+        return False
+
+
+def save_to_journal_file(text: str, date_str: str) -> None:
+    """Save text to journal file (fallback method or when API is disabled).
+
+    Args:
+        text: The text to save.
+        date_str: The date string in YYYY-MM-DD format.
+    """
+    journal_file = JOURNAL_FOLDER / f"{date_str}.md"
+    JOURNAL_FOLDER.mkdir(parents=True, exist_ok=True)
+
+    if journal_file.exists():
+        logger.info("Appending to existing journal file: %s", journal_file)
+        with journal_file.open("a", encoding="utf-8") as f:
+            f.write("\n\n---\n\n")
+            f.write(text)
+            f.write("\n")
+    else:
+        logger.info("Creating new journal file: %s", journal_file)
+        journal_file.write_text(text, encoding="utf-8")
+
+    logger.info("Saved cleaned transcription to: %s", journal_file)
+
+
 def process_audio_file(audio_file: Path) -> None:
     """Process a single audio file through the full pipeline.
 
@@ -185,22 +268,16 @@ def process_audio_file(audio_file: Path) -> None:
 
     # Save to journal file for today
     today = datetime.now(UTC).strftime("%Y-%m-%d")
-    journal_file = JOURNAL_FOLDER / f"{today}.md"
 
-    JOURNAL_FOLDER.mkdir(parents=True, exist_ok=True)
-
-    # Append to existing file or create new one
-    if journal_file.exists():
-        logger.info("Appending to existing journal file: %s", journal_file)
-        with journal_file.open("a", encoding="utf-8") as f:
-            f.write("\n\n---\n\n")
-            f.write(cleaned_text)
-            f.write("\n")
+    # Try Obsidian API first if enabled, otherwise write directly to file
+    if USE_OBSIDIAN_API:
+        logger.info("Using Obsidian API to save daily note")
+        success = append_to_obsidian_daily_note(cleaned_text, today)
+        if not success:
+            logger.warning("Obsidian API failed, falling back to direct file write")
+            save_to_journal_file(cleaned_text, today)
     else:
-        logger.info("Creating new journal file: %s", journal_file)
-        journal_file.write_text(cleaned_text, encoding="utf-8")
-
-    logger.info("Saved cleaned transcription to: %s", journal_file)
+        save_to_journal_file(cleaned_text, today)
 
     # Move the original audio file to processed folder
     PROCESSED_FOLDER.mkdir(parents=True, exist_ok=True)
