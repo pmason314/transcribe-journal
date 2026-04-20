@@ -7,19 +7,52 @@ authors = [{ name = "Peter Mason", email = "peter@petermason.me" }]
 license = "MIT"
 license-files = ["LICENSE"]
 classifiers = ["Programming Language :: Python :: 3", "Natural Language :: English"]
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 dependencies = [
+    "accelerate>=1.12.0",
+    "fastapi>=0.124.0",
+    "flask>=3.1.2",
+    "flask-cors>=6.0.1",
+    "gunicorn>=23.0.0",
     "httpx>=0.28.1",
+    "librosa>=0.11.0",
+    "peft>=0.18.0",
+    "python-multipart>=0.0.20",
+    "soundfile>=0.13.1",
+    "torch>=2.9.1",
+    "torchaudio>=2.9.1",
+    "torchcodec>=0.9.0",
+    "transformers>=4.57.3",
+    "uvicorn>=0.38.0",
     "watchdog>=6.0.0",
+
+]
+
+[[tool.uv.index]]
+name     = "pytorch-cpu"
+url      = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+torchvision = [
+    { index = "pytorch-cpu" },
+]
+torchaudio = [
+    { index = "pytorch-cpu" },
 ]
 
 [dependency-groups]
 dev = [
     "creosote>=4.1.0",
+    "huggingface-hub>=0.36.0",
     "ipykernel>=7.1.0",
     "pre-commit>=4.5.0",
     "pytest>=9.0.2",
     "ruff>=0.14.8",
+    "ty>=0.0.31",
 ]
 
 [tool.ruff]
@@ -64,9 +97,5 @@ convention = "google"
 [tool.ruff.format]
 docstring-code-format = true
 
-[tool.pyright]
-reportArgumentType      = false
-reportOptionalSubscript = false
-
-[tool.pytest.ini_options] # Pytest config options found at https://docs.pytest.org/en/stable/reference/customize.html
-testpaths = ["tests"]
+[tool.ty.terminal]
+output-format = "concise"

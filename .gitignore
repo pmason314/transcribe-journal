@@ -158,5 +158,9 @@ cython_debug/
 # MacOS files
 .DS_Store
 
+# Model weights (download separately via huggingface-cli)
+server/models/*
+!server/models/PUT_STT_MODEL_HERE.txt
+
 # Scratch files
 **/scratch.*

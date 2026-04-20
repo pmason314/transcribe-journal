@@ -1,0 +1,21 @@
+[Unit]
+Description=Granite Speech Transcription API
+After=network.target
+
+[Service]
+Type=simple
+User=peter
+Group=peter
+WorkingDirectory=/home/peter/transcribe-journal
+ExecStart=/usr/bin/uv run --env-file .env python server/server.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/peter/transcribe-journal/server/logs/server.log
+StandardError=append:/home/peter/transcribe-journal/server/logs/error.log
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

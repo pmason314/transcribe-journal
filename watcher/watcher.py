@@ -22,7 +22,7 @@ import httpx
 WATCH_FOLDER = Path(os.getenv("WATCH_FOLDER", "/mnt/syncthing/Voice Recordings")).expanduser()
 TRANSCRIBE_URL = os.getenv("TRANSCRIBE_URL", "http://192.168.0.165:8000/transcribe")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.6")
 JOURNAL_FOLDER = Path(os.getenv("JOURNAL_FOLDER", "/mnt/syncthing/Obsidian/Archive/Journal")).expanduser()
 PROCESSED_FOLDER = WATCH_FOLDER / ".processed"
 
