@@ -7,7 +7,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=%h/transcribe-journal
-ExecStart=/usr/bin/uv run --env-file .env watcher/watcher.py
+ExecStart=%h/.local/bin/uv run --env-file .env watcher/watcher.py
 Restart=always
 RestartSec=10
 
