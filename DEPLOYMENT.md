@@ -56,7 +56,8 @@ curl http://localhost:8000/health
 Edit `transcribe-server.service` to set the correct paths for your machine, then install it:
 
 ```bash
-# Update WorkingDirectory and User/Group in the service file first
+# Update WorkingDirectory, User/Group, and ExecStart in the service file first
+# ExecStart should use the full path from: which uv
 nano transcribe-server.service
 
 # Install
@@ -69,10 +70,11 @@ sudo systemctl status transcribe-server
 
 Key fields to verify in the service file:
 
-| Field              | Description                    |
-| ------------------ | ------------------------------ |
-| `User` / `Group`   | User to run the service as     |
-| `WorkingDirectory` | Absolute path to the repo root |
+| Field              | Description                     |
+| ------------------ | ------------------------------- |
+| `User` / `Group`   | User to run the service as      |
+| `WorkingDirectory` | Absolute path to the repo root  |
+| `ExecStart`        | Full path to `uv` for that user |
 
 ### Environment variables
 
@@ -165,6 +167,8 @@ Drop an audio file into your `WATCH_FOLDER` and watch the logs to verify the ful
 Edit `transcribe-watcher.service` to set the correct paths for your machine, then install it:
 
 ```bash
+# Update WorkingDirectory, User/Group, and ExecStart in the service file first
+# ExecStart should use the full path from: which uv
 nano transcribe-watcher.service
 
 sudo cp transcribe-watcher.service /etc/systemd/system/
@@ -176,10 +180,11 @@ sudo systemctl status transcribe-watcher
 
 Key fields to verify in the service file:
 
-| Field              | Description                    |
-| ------------------ | ------------------------------ |
-| `User` / `Group`   | User to run the service as     |
-| `WorkingDirectory` | Absolute path to the repo root |
+| Field              | Description                     |
+| ------------------ | ------------------------------- |
+| `User` / `Group`   | User to run the service as      |
+| `WorkingDirectory` | Absolute path to the repo root  |
+| `ExecStart`        | Full path to `uv` for that user |
 
 ### Managing the watcher service
 
