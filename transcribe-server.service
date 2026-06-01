@@ -7,9 +7,8 @@ After=network.target
 Type=simple
 User=peter
 Group=peter
-WorkingDirectory=%h/transcribe-journal
-ExecStart=%h/.local/bin/uv run --env-file .env python server/server.py
-Restart=always
+WorkingDirectory=/home/peter/transcribe-journal
+ExecStart=/home/peter/.local/bin/uv run --env-file .env python server/server.pyRestart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
