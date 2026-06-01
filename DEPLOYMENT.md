@@ -102,8 +102,6 @@ sudo systemctl status transcribe-server
 
 # Logs
 sudo journalctl -u transcribe-server -f
-tail -f ~/transcribe-journal/server/logs/server.log
-tail -f ~/transcribe-journal/server/logs/error.log
 ```
 
 ### Uninstalling the server service

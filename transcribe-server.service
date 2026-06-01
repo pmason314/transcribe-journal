@@ -11,8 +11,9 @@ WorkingDirectory=%h/transcribe-journal
 ExecStart=/usr/bin/uv run --env-file .env python server/server.py
 Restart=always
 RestartSec=10
-StandardOutput=append:%h/transcribe-journal/server/logs/server.log
-StandardError=append:%h/transcribe-journal/server/logs/error.log
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=transcribe-server
 
 # Security hardening
 NoNewPrivileges=true
