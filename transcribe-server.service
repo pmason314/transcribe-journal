@@ -2,16 +2,17 @@
 Description=Granite Speech Transcription API
 After=network.target
 
+# Update User and Group in this section
 [Service]
 Type=simple
 User=peter
 Group=peter
-WorkingDirectory=/home/peter/transcribe-journal
+WorkingDirectory=%h/transcribe-journal
 ExecStart=/usr/bin/uv run --env-file .env python server/server.py
 Restart=always
 RestartSec=10
-StandardOutput=append:/home/peter/transcribe-journal/server/logs/server.log
-StandardError=append:/home/peter/transcribe-journal/server/logs/error.log
+StandardOutput=append:%h/transcribe-journal/server/logs/server.log
+StandardError=append:%h/transcribe-journal/server/logs/error.log
 
 # Security hardening
 NoNewPrivileges=true

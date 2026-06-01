@@ -2,10 +2,11 @@
 Description=Audio Transcription Journal Service
 After=network.target
 
+# Update User and Group in this section
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/root/transcribe-journal
+WorkingDirectory=%h/transcribe-journal
 ExecStart=/usr/bin/uv run --env-file .env watcher/watcher.py
 Restart=always
 RestartSec=10
