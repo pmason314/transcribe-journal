@@ -26,7 +26,7 @@ uv sync
 Model files are not included in the repository. Download them from Hugging Face:
 
 ```bash
-uv run huggingface-cli download ibm-granite/granite-speech-4.1-2b --local-dir server/models/granite-speech-4.1-2b
+uv run hf download ibm-granite/granite-speech-4.1-2b --local-dir server/models/granite-speech-4.1-2b
 ```
 
 This requires ~5 GB of free disk space. The download will populate `server/models/granite-speech-4.1-2b/` with the safetensors weights and config files needed to run the server.
@@ -104,6 +104,15 @@ sudo systemctl status transcribe-server
 sudo journalctl -u transcribe-server -f
 tail -f ~/transcribe-journal/server/logs/server.log
 tail -f ~/transcribe-journal/server/logs/error.log
+```
+
+### Uninstalling the server service
+
+```bash
+sudo systemctl stop transcribe-server
+sudo systemctl disable transcribe-server
+sudo rm /etc/systemd/system/transcribe-server.service
+sudo systemctl daemon-reload
 ```
 
 ### Firewall
@@ -184,6 +193,15 @@ sudo systemctl status transcribe-watcher
 # Logs
 sudo journalctl -u transcribe-watcher -f
 sudo journalctl -u transcribe-watcher -n 100
+```
+
+### Uninstalling the watcher service
+
+```bash
+sudo systemctl stop transcribe-watcher
+sudo systemctl disable transcribe-watcher
+sudo rm /etc/systemd/system/transcribe-watcher.service
+sudo systemctl daemon-reload
 ```
 
 ---
