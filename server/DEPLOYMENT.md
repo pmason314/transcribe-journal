@@ -51,7 +51,7 @@ Environment variables can be set in the service file or create a `.env` file:
 
 - `PORT` - Server port (default: 8000)
 - `HOST` - Bind address (default: 0.0.0.0)
-- `MODEL_PATH` - Path to model (default: models/granite-speech-3.3-2b)
+- `MODEL_PATH` - Path to model (default: models/granite-speech-4.1-2b)
 
 
 ## Monitoring
@@ -101,7 +101,7 @@ sudo ufw delete allow 8000/tcp
 4. Check permissions: `ls -la /home/peter/transcribe`
 
 ### Model loading issues
-- Ensure model files exist in `models/granite-speech-3.3-2b/`
+- Ensure model files exist in `models/granite-speech-4.1-2b/`
 - Check available memory (model requires ~5GB RAM)
 
 ### Connection refused

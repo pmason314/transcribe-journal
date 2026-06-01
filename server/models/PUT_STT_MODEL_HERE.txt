@@ -2,7 +2,7 @@ Model weight files (*.safetensors) are not stored in this repository.
 
 Download them before starting the server:
 
-    uv run huggingface-cli download ibm-granite/granite-speech-3.3-2b \
-        --local-dir server/models/granite-speech-3.3-2b
+    uv run huggingface-cli download ibm-granite/granite-speech-4.1-2b \
+        --local-dir server/models/granite-speech-4.1-2b
 
 Requires ~5 GB of free disk space.

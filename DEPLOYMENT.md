@@ -6,7 +6,7 @@ Both machines clone this repository with a standard `git clone`. Model files are
 
 ## Server Machine
 
-The server loads the Granite Speech 3.3-2B model and exposes a transcription API on port 8000.
+The server loads the Granite Speech 4.1-2B model and exposes a transcription API on port 8000.
 
 ### 1. Clone the repository
 
@@ -26,10 +26,10 @@ uv sync
 Model files are not included in the repository. Download them from Hugging Face:
 
 ```bash
-uv run huggingface-cli download ibm-granite/granite-speech-3.3-2b --local-dir server/models/granite-speech-3.3-2b
+uv run huggingface-cli download ibm-granite/granite-speech-4.1-2b --local-dir server/models/granite-speech-4.1-2b
 ```
 
-This requires ~5 GB of free disk space. The download will populate `server/models/granite-speech-3.3-2b/` with the safetensors weights and config files needed to run the server.
+This requires ~5 GB of free disk space. The download will populate `server/models/granite-speech-4.1-2b/` with the safetensors weights and config files needed to run the server.
 
 ### 4. Configure environment
 
@@ -192,7 +192,7 @@ sudo journalctl -u transcribe-watcher -n 100
 
 ### Server won't start
 1. Check logs: `sudo journalctl -u transcribe-server -n 50`
-2. Verify model files exist in `server/models/granite-speech-3.3-2b/`
+2. Verify model files exist in `server/models/granite-speech-4.1-2b/`
 3. Ensure the virtual environment was created: `ls .venv/`
 4. Check available memory — the model requires ~5 GB RAM
 

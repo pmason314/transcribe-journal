@@ -6,7 +6,7 @@ A two-component system for automatically transcribing audio journal entries and 
 
 ```
 [Watcher Machine]                          [Server Machine]
-  Audio file dropped                         Granite Speech 3.3-2B model
+  Audio file dropped                         Granite Speech 4.1-2B model
   into watched folder                        FastAPI transcription server
        │                                              │
        │  POST /transcribe (audio file)              │
@@ -21,7 +21,7 @@ A two-component system for automatically transcribing audio journal entries and 
   Obsidian journal file (YYYY-MM-DD.md)
 ```
 
-**Server** (`server/server.py`): Runs the IBM Granite Speech 3.3-2B model and exposes a REST API for audio transcription. Intended to be deployed on a machine with enough RAM (~5 GB) to run the model.
+**Server** (`server/server.py`): Runs the IBM Granite Speech 4.1-2B model and exposes a REST API for audio transcription. Intended to be deployed on a machine with enough RAM (~5 GB) to run the model.
 
 **Watcher** (`watcher/watcher.py`): Polls a local folder for new audio files, sends them to the server for transcription, runs the transcript through Ollama for cleanup, and appends the result to today's journal entry.
 

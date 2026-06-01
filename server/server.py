@@ -33,7 +33,7 @@ PORT = int(os.getenv("PORT", "8000"))
 HOST = os.getenv("HOST", "127.0.0.1")
 # Comma-separated list of allowed hostnames/IPs (used for documentation/operational checks)
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
-MODEL_PATH = os.getenv("MODEL_PATH", "models/granite-speech-3.3-2b")
+MODEL_PATH = os.getenv("MODEL_PATH", "models/granite-speech-4.1-2b")
 
 
 @asynccontextmanager
